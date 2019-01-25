@@ -369,11 +369,6 @@ void DiffCalc<Elem, UserDataT>::_shift_boundries()
 		if (_diff[i].type == diff_type::DIFF_MATCH)
 			continue;
 
-		const Elem*	data	= nullptr;
-		int max_len			= 0;
-		int offset			= 0;
-		int i_off			= 0;
-
 		if ((i + 1 < diff_size) && (_diff[i].type == _diff[i + 1].type))
 		{
 			_diff[i].len += _diff[i + 1].len;
@@ -384,6 +379,11 @@ void DiffCalc<Elem, UserDataT>::_shift_boundries()
 		if (_diff[i].off == 0)
 			continue;
 
+		const Elem*	el	= nullptr;
+		int max_len		= 0;
+		int offset		= 0;
+		int i_off		= 0;
+
 		if (_diff[i].type == diff_type::DIFF_IN_1)
 		{
 			// If there is a DIFF_IN_2 after a DIFF_IN_1, there is a potential match, so both blocks
@@ -392,6 +392,9 @@ void DiffCalc<Elem, UserDataT>::_shift_boundries()
 			{
 				if (_diff[i + 1].off == 0)
 					continue;
+
+				++i;
+				continue;
 
 				diff_info<UserDataT>& adiff = _diff[i];
 				diff_info<UserDataT>& bdiff = _diff[i + 1];
@@ -425,17 +428,17 @@ void DiffCalc<Elem, UserDataT>::_shift_boundries()
 			}
 			else
 			{
-				data	= _a;
+				el		= _a;
 				max_len	= _a_size;
 			}
 		}
 		else
 		{
-			data	= _b;
+			el		= _b;
 			max_len	= _b_size;
 		}
 
-		if (data)
+		if (el)
 		{
 			diff_info<UserDataT>& diff = _diff[i];
 
@@ -454,7 +457,7 @@ void DiffCalc<Elem, UserDataT>::_shift_boundries()
 			if (diff.len < max_len)
 				max_len = diff.len;
 
-			while (offset < max_len && data[diff.off] == data[match_off])
+			while (offset < max_len && el[diff.off] == el[match_off])
 			{
 				++(diff.off);
 				++match_off;
@@ -514,26 +517,23 @@ std::vector<diff_info<UserDataT>> DiffCalc<Elem, UserDataT>::operator()(bool doB
 	/* The _ses function assumes we begin with a diff. The following ensures this is true by skipping any matches
 	 * in the beginning. This also helps to quickly process sequences that match entirely.
 	 */
-	int x = 0, y = 0;
+	int off = 0;
 
 	int asize = _a_size;
 	int bsize = _b_size;
 
-	while (x < asize && y < bsize && _a[x] == _b[y])
-	{
-		++x;
-		++y;
-	}
+	while (off < asize && off < bsize && _a[off] == _b[off])
+		++off;
 
-	_edit(diff_type::DIFF_MATCH, 0, x);
+	_edit(diff_type::DIFF_MATCH, 0, off);
 
-	if (asize == bsize && x == asize)
+	if (asize == bsize && off == asize)
 		return _diff;
 
-	asize -= x;
-	bsize -= y;
+	asize -= off;
+	bsize -= off;
 
-	if (_ses(x, asize, y, bsize) == -1)
+	if (_ses(off, asize, off, bsize) == -1)
 		_diff.clear();
 	else if (doBoundaryShift)
 		_shift_boundries();
